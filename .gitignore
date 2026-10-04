@@ -1,0 +1,22 @@
+# Dependencias
+node_modules/
+
+# Secretos y configuración local
+.env
+.env.*
+*.tfvars
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# CDK / SAM
+cdk.out/
+.aws-sam/
+
+# Sistema y editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

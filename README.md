@@ -153,7 +153,10 @@ flowchart TD
   class CW_UPLOAD,CW_CROP,CW_APIGW,CW_ALARM obsNode
   class VPCE_S3 vpceNode
 ```
-
+## Cambios realizados en el diagrama posteriores al análisis correspondiente
+1. Eliminación de ambos NAT Gateways debido a sobrecostos e inutilidad porque no se necesita salir a internet.
+2. Eliminamos el SQS Interface Endpoint por ser un costo innecesario. El costo escala por zona de disponibilidad...
+3. El bucket uploads/ con versionado y expiración a 30 días está mal configurado. La regla de expiración solo afecta a la versión actual y deja un delete marker. Las versiones anteriores quedan para siempre y el almacenamiento crece sin límite.
 ## Reparto del equipo
 
 | Integrante | Responsabilidad | Ramas |

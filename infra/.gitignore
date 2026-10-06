@@ -1,0 +1,6 @@
+build/
+*.zip
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/

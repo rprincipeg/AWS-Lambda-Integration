@@ -6,6 +6,7 @@ const { detectImageType, sanitizeName, buildKey } = require("../src/validate");
 const relleno = (bytes) => Buffer.concat([Buffer.from(bytes), Buffer.alloc(12)]);
 const PNG = relleno([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const JPEG = relleno([0xff, 0xd8, 0xff]);
+const GIF = relleno("GIF89a");
 
 test("detecta un PNG por su firma", () => {
   assert.deepEqual(detectImageType(PNG), { mime: "image/png", ext: "png" });
@@ -17,6 +18,10 @@ test("detecta un JPEG por su firma", () => {
 
 test("devuelve null para texto plano aunque se llame foto.png", () => {
   assert.equal(detectImageType(Buffer.from("hola, esto no es una imagen")), null);
+});
+
+test("detecta un GIF por su firma", () => {
+  assert.deepEqual(detectImageType(GIF), { mime: "image/gif", ext: "gif" });
 });
 
 test("sanitizeName limpia espacios, mayúsculas y paréntesis", () => {

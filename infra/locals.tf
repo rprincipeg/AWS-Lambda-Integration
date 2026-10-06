@@ -3,7 +3,7 @@ resource "random_id" "bucket_suffix" {
 }
 
 locals {
-  name_prefix          = "${var.project_name}-${var.environment}"
+  name_prefix          = "${project_name}-${environment}[-${sandbox}]"
   upload_function_name = "${local.name_prefix}-upload"
   crop_function_name   = "${local.name_prefix}-crop"
   bucket_name          = "${local.name_prefix}-images-${random_id.bucket_suffix.hex}"

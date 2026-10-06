@@ -1,5 +1,5 @@
 const { S3Client } = require("@aws-sdk/client-s3");
-const { v4: uuid } = require("uuid");
+const { randomUUID: uuid } = require("crypto");
 const { createHandler } = require("./src/handler");
 
 // Falla al arrancar si falta el bucket: mejor un error claro que un 500 en cada petición

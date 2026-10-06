@@ -69,7 +69,7 @@ test("multipart con S3 que falla responde 500", async () => {
   assert.equal(bodyOf(res).error.code, "INTERNAL_ERROR");
 });
 
-test("conent-type desconocido responde 415", async () => {
+test("content-type desconocido responde 415", async () => {
   const { handler } = setup();
   const res = await handler({ headers: { "content-type": "text/plain" }, body: "hola" });
 
@@ -115,4 +115,13 @@ test("multipart sin archivo responde 400", async () => {
 
   assert.equal(res.statusCode, 400);
   assert.equal(bodyOf(res).error.code, "BAD_REQUEST");
+});
+
+test("sanitizeNamme eliimina rutas como ../../etc/passwd", async () => {
+  const { handler } = setup();
+  const res = await handler(multipartEvent(images.png, "../../etc/passwd"));
+
+  assert.equal(res.statusCode, 201);
+  assert.ok(bodyOf(res).key.endsWith(".png"));
+  assert.ok(!bodyOf(res).key.includes(".."));
 });

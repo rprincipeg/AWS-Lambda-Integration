@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.*
 *.tfvars
+!infra/environments/*.tfvars
 
 # Terraform
 .terraform/

@@ -3,38 +3,58 @@ data "aws_availability_zones" "available" {
 }
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags                 = { Name = "${local.name_prefix}-vpc" }
+
+  tags = {
+    Name = "${local.name_prefix}-vpc"
+  }
 }
 
 resource "aws_subnet" "private_a" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.11.0/24"
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, 11)
   availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = false
-  tags                    = { Name = "${local.name_prefix}-subnet-private-a" }
+
+  tags = {
+    Name = "${local.name_prefix}-subnet-private-a"
+  }
 }
 
 resource "aws_subnet" "private_b" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.12.0/24"
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, 12)
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = false
-  tags                    = { Name = "${local.name_prefix}-subnet-private-b" }
+
+  tags = {
+    Name = "${local.name_prefix}-subnet-private-b"
+  }
 }
 
-# No hay NAT Gateway ni Internet Gateway: las Lambdas solo necesitan S3
-# mediante el endpoint gateway, evitando costos fijos innecesarios.
+# No hay NAT Gateway ni Internet Gateway porque las Lambdas
+# solo necesitan comunicarse con S3 mediante el endpoint Gateway.
+# Esto evita el costo fijo de un NAT Gateway, estimado en unos USD 66
+# mensuales por entorno.
+#
+# Cada entorno utiliza un CIDR diferente para evitar solapamientos
+# si en el futuro las VPC necesitan conectarse entre sí.
 resource "aws_route_table" "private_a" {
   vpc_id = aws_vpc.main.id
-  tags   = { Name = "${local.name_prefix}-rt-private-a" }
+
+  tags = {
+    Name = "${local.name_prefix}-rt-private-a"
+  }
 }
 
 resource "aws_route_table" "private_b" {
   vpc_id = aws_vpc.main.id
-  tags   = { Name = "${local.name_prefix}-rt-private-b" }
+
+  tags = {
+    Name = "${local.name_prefix}-rt-private-b"
+  }
 }
 
 resource "aws_route_table_association" "private_a" {
@@ -48,5 +68,8 @@ resource "aws_route_table_association" "private_b" {
 }
 
 locals {
-  private_subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+  private_subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
 }

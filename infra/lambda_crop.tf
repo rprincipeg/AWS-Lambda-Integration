@@ -49,6 +49,29 @@ resource "aws_lambda_function" "crop" {
   ]
 }
 
+# Conecta la cola principal con crop-lambda. La lectura de SQS la hace el
+# servicio Lambda (fuera de la VPC), no la función, por eso no hace falta un
+# endpoint de SQS dentro de la VPC.
+resource "aws_lambda_event_source_mapping" "crop_sqs" {
+  event_source_arn = aws_sqs_queue.main.arn
+  function_name    = aws_lambda_function.crop.arn
+  batch_size       = 5
+  enabled          = true
+
+  # Permite que el handler devuelva batchItemFailures y que SQS solo
+  # reintente los mensajes fallidos.
+  function_response_types = ["ReportBatchItemFailures"]
+
+  # Limita las ejecuciones en paralelo como protección de costos ante una
+  # avalancha de imágenes; el valor cambia por entorno.
+  scaling_config {
+    maximum_concurrency = var.sqs_max_concurrency
+  }
+
+  # AWS valida los permisos de SQS del rol al crear el mapping.
+  depends_on = [aws_iam_role_policy.crop_permissions]
+}
+
 output "crop_function_name" {
   description = "Nombre de la función Lambda que recorta las imágenes en círculo."
   value       = aws_lambda_function.crop.function_name

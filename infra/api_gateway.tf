@@ -24,3 +24,37 @@ resource "aws_apigatewayv2_route" "upload_post" {
   route_key = "POST /upload"
   target    = "integrations/${aws_apigatewayv2_integration.upload.id}"
 }
+
+# Logs de acceso de la API: una línea JSON por petición
+resource "aws_cloudwatch_log_group" "apigw" {
+  name              = "/aws/apigateway/${local.name_prefix}-api"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.upload.id
+  name        = "$default"
+  auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = var.api_burst_limit
+    throttling_rate_limit  = var.api_rate_limit
+  }
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.apigw.arn
+    format = jsonencode({
+      requestId        = "$context.requestId"
+      ip               = "$context.identity.sourceIp"
+      requestTime      = "$context.requestTime"
+      httpMethod       = "$context.httpMethod"
+      routeKey         = "$context.routeKey"
+      status           = "$context.status"
+      protocol         = "$context.protocol"
+      responseLength   = "$context.responseLength"
+      integrationError = "$context.integrationErrorMessage"
+    })
+  }
+
+  depends_on = [aws_cloudwatch_log_group.apigw]
+}

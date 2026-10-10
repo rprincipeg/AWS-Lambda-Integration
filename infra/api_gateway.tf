@@ -58,3 +58,22 @@ resource "aws_apigatewayv2_stage" "default" {
 
   depends_on = [aws_cloudwatch_log_group.apigw]
 }
+
+# Sin este permiso, la api recibe la petición pero lambda rechaza y responde 500
+resource "aws_lambda_permission" "apigw_invoke_upload" {
+  statement_id  = "AllowInvokeFromApiGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.upload.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.upload.execution_arn}/*/*"
+}
+
+output "api_invoke_url" {
+  description = "URL base del stage de la API."
+  value       = aws_apigatewayv2_stage.default.invoke_url
+}
+
+output "upload_endpoint" {
+  description = "URL completa para subir imágenes con POST."
+  value       = "${trimsuffix(aws_apigatewayv2_stage.default.invoke_url, "/")}/upload"
+}

@@ -188,6 +188,9 @@ flowchart TD
 1. Eliminación de ambos NAT Gateways debido a sobrecostos e inutilidad porque no se necesita salir a internet.
 2. Eliminamos el SQS Interface Endpoint por ser un costo innecesario. El costo escala por zona de disponibilidad...
 3. El bucket uploads/ con versionado y expiración a 30 días está mal configurado. La regla de expiración solo afecta a la versión actual y deja un delete marker. Las versiones anteriores quedan para siempre y el almacenamiento crece sin límite.
+4. El límite de subida es 4 MB y no 10 MB como muestra el diagrama. La invocación síncrona de Lambda admite como máximo 6 MB y el base64 aumenta el tamaño un 33 %, por lo que con 4 MB el evento queda por debajo de ese límite.
+5. La alarma de CloudWatch sobre la DLQ (`dlq-messages-alarm`) y su tema de SNS no se implementaron, aunque el diagrama todavía los muestra. Los mensajes fallidos se revisan directamente en la DLQ.
+
 ## Estructura del repositorio
 
 ```text
@@ -216,7 +219,17 @@ flowchart TD
 Además se necesita:
 
 - Credenciales de AWS configuradas (`aws configure`) con permisos para crear los recursos en `us-east-1`.
-- El nombre del bucket del estado remoto de Terraform. Se pide al equipo y **nunca se guarda en el repositorio**.
+- Un bucket de S3 para el estado remoto de Terraform. Su nombre **nunca se guarda en el repositorio**.
+
+### Crear el bucket del estado remoto
+
+Si se despliega en una cuenta de AWS donde el bucket del estado todavía no existe, hay que crearlo una sola vez antes del primer despliegue. El nombre debe ser único en todo S3:
+
+```bash
+aws s3 mb s3://<nombre-unico> --region us-east-1
+```
+
+Ese nombre es el que después se usa en `TF_STATE_BUCKET`. Los tres entornos y los sandboxes comparten el bucket; cada uno guarda su estado en una ruta distinta (`dev/`, `qa/`, `prod/`, `sandbox/<nombre>/`).
 
 ## Instalación
 
@@ -263,22 +276,30 @@ bash scripts/tf.sh dev apply
 
 `tf.sh` comprueba que existan las carpetas `build/` de las Lambdas y pide confirmación si se intenta desplegar qa o prod desde una rama distinta de la suya.
 
-Para eliminar un entorno de pruebas: `bash scripts/tf.sh sandbox:<nombre> destroy`.
+### Eliminar un entorno
+
+```bash
+cd infra
+bash scripts/tf.sh dev destroy               # o qa, prod, sandbox:<nombre>
+```
+
+- **Tarda más de 20 minutos:** AWS libera lentamente las interfaces de red que las Lambdas crean dentro de la VPC, y las subnets y Security Groups no se pueden borrar hasta entonces.
+- **prod pide una confirmación extra:** hay que escribir `destruir prod`. Además, en prod el bucket de imágenes no se vacía solo (`bucket_force_destroy = false`), así que hay que vaciarlo antes con `aws s3 rm s3://<bucket-de-imagenes> --recursive`.
+- **El bucket del estado no lo borra Terraform:** se creó fuera de Terraform. Si ya no se necesita, se elimina a mano con `aws s3 rb s3://<nombre-unico> --force`.
 
 ## Uso
 
 ### 1. Obtener la URL de la API
 
+Dentro de `infra/`, después de desplegar con `tf.sh`:
+
 ```bash
 cd infra
-bash scripts/tf.sh dev output -raw upload_endpoint
+export API=$(terraform output -raw upload_endpoint)
+echo "$API"
 ```
 
-El script muestra primero su encabezado y la salida de `terraform init`; la URL es la última línea. Cópiala en una variable:
-
-```bash
-export API=<url-de-upload_endpoint>
-```
+`terraform output` lee el estado del último entorno que inicializó `tf.sh`, así que funciona en dev, qa, prod y sandbox. No se usa `bash scripts/tf.sh sandbox:<nombre> output`, porque el script le pasa `-var` y `terraform output` no acepta ese argumento.
 
 ### 2. Subir una imagen
 
@@ -299,7 +320,7 @@ Los demás códigos de respuesta y el envío en JSON con base64 están en [api-g
 Unos segundos después, crop-lambda guarda el resultado con el sufijo `_circular.png`:
 
 ```bash
-export BUCKET=<bucket-de-la-respuesta>
+export BUCKET=$(terraform output -raw bucket_name)
 aws s3 ls "s3://$BUCKET/processed/"
 aws s3 cp "s3://$BUCKET/processed/3f2a..._foto_circular.png" resultado.png
 ```

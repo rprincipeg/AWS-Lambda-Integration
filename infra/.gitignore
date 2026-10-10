@@ -1,0 +1,7 @@
+build/
+*.zip
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+!infra/environments/*.tfvars
